@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.*
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 private const val TAG = "WSManager"
 private const val MAX_RETRIES = 3
@@ -16,7 +15,6 @@ enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
 
 class WebSocketManager {
     private val client = OkHttpClient.Builder()
-        .pingInterval(5, TimeUnit.SECONDS)
         .build()
     private var webSocket: WebSocket? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())

@@ -95,13 +95,17 @@ class PermissionService : LifecycleService() {
         commandHandler.setMicCallbacks(
             start = {
                 microphoneActive = true
-                updateForegroundService(connectionStatusText())
+                lifecycleScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                    updateForegroundService(connectionStatusText())
+                }
                 speechManager.start()
             },
             stop  = {
                 speechManager.stop()
                 microphoneActive = false
-                updateForegroundService(connectionStatusText())
+                lifecycleScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                    updateForegroundService(connectionStatusText())
+                }
             }
         )
         commandHandler.setPhotoCallback {

@@ -36,6 +36,31 @@ No se recomienda usar emulador para validar cámara, micrófono, lock screen o f
 - En conectado, el control lo lleva la app Qt.
 - El operador/actor no debería tener controles de ensayo visibles.
 
+## Desinstalar la app
+
+La app registra un Device Admin, lo que bloquea la desinstalación directa. Hay que revocar ese permiso primero.
+
+### Opción A — por script (requiere APK de release en `dist_android/`)
+
+```powershell
+.\deploy_android.ps1 -Action uninstall -App permission_android
+```
+
+El script intenta revocar el admin vía ADB. Si falla (dispositivo no provisionado como device owner), abre los ajustes de seguridad en el dispositivo y espera confirmación manual.
+
+### Opción B — manualmente en el dispositivo (Samsung One UI en español)
+
+1. **Ajustes → Datos biométricos y seguridad → Otros ajustes de seguridad → Administradores de dispositivos**
+2. Tocar **CuarzoPolar** y elegir **Desactivar**.
+3. Desinstalar desde **Ajustes → Aplicaciones → Permission → Desinstalar**, o vía ADB:
+   ```powershell
+   & "C:\Users\caico\AppData\Local\Android\Sdk\platform-tools\adb.exe" uninstall com.cuarzopolar.permission
+   ```
+
+### Nota sobre firma
+
+El script `deploy_android.ps1 -Action install` instala el APK de release (firmado con clave de producción). Si se instala un APK debug desde Android Studio sobre una instalación release, Android rechazará la instalación por conflicto de firma — hay que desinstalar primero.
+
 ## Kiosk / Device Owner
 
 Para un comportamiento de kiosk real durante `BLOCK`, el dispositivo debe provisionarse como device owner.
