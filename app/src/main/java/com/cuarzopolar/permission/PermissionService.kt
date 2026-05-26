@@ -176,9 +176,13 @@ class PermissionService : LifecycleService() {
             }
         }
 
-        // Always try localhost first — orchestrator sets up adb reverse before launching this app.
-        // On failure the retries-exhausted collector below falls back to UDP discovery.
-        wsManager.connect("localhost")
+        val savedIp = getSharedPreferences("permission_prefs", Context.MODE_PRIVATE)
+            .getString("last_ip", null)
+        if (savedIp != null) {
+            wsManager.connect(savedIp, 3002)
+        } else {
+            startDiscovery()
+        }
 
         lifecycleScope.launch {
             wsManager.connectionState.collect { state ->
@@ -235,7 +239,7 @@ class PermissionService : LifecycleService() {
     fun connect(ip: String) {
         getSharedPreferences("permission_prefs", Context.MODE_PRIVATE)
             .edit().putString("last_ip", ip).apply()
-        wsManager.connect(ip)
+        wsManager.connect(ip, 3002)
     }
 
     fun disconnect() {
@@ -310,7 +314,9 @@ class PermissionService : LifecycleService() {
             try {
                 val beacon = UdpDiscovery.awaitBeacon()
                 if (wsManager.connectionState.value == ConnectionState.DISCONNECTED) {
-                    connect(beacon.ip)
+                    getSharedPreferences("permission_prefs", Context.MODE_PRIVATE)
+                        .edit().putString("last_ip", beacon.ip).apply()
+                    wsManager.connect(beacon.ip, beacon.port)
                 }
             } catch (_: Exception) { /* cancelled or socket error */ }
         }

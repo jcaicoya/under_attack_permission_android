@@ -6,15 +6,15 @@ Everything here is for theatrical show control. No real device compromise is per
 
 ## Current Architecture
 
-- Qt laptop app (`permission_qt`): WebSocket server on port `8765`.
-- Android companion: WebSocket client.
-- **Primary connection path:** ADB reverse tunnel (`adb reverse tcp:8765 tcp:8765`) set up by the
-  Orchestrator before launching the Android app. Android connects to `localhost:8765`.
-- **Fallback path (no ADB/Orchestrator):** Android tries `localhost:8765` for 3 retries (~7 s),
-  then falls back to UDP beacon discovery, then manual IP entry.
+- **Backend**: `polar_shield` Node.js backend — raw WebSocket server on port `3002` (gancho channel).
+- **Android companion**: WebSocket client (OkHttp3).
+- **Primary connection path:** saved IP from previous session → direct connect to `<ip>:3002`.
+- **First-run / no saved IP path:** Android starts UDP discovery immediately, listens for backend beacon on UDP port 8766. Backend broadcasts `{"type":"beacon","ip":"...","port":3002}` every 2 s on all network interfaces.
+- **Manual fallback:** tap Cuarzito → enter laptop IP → CONECTAR (also uses port 3002).
+- **No ADB tunnel required.** Both devices just need to be on the same WiFi.
 - Text protocol: compact JSON over WebSocket text frames.
 - Binary protocol: JPEG data over WebSocket binary frames.
-- Heartbeat: Qt sends `ping`; Android replies `pong`.
+- Heartbeat: backend sends `{"type":"ping"}`; Android replies `{"type":"pong"}`.
 
 ## Recommended Show Network
 
@@ -33,13 +33,14 @@ This avoids venue Wi-Fi variability and usually gives the laptop a predictable a
 ### Startup
 
 1. Android starts `PermissionService` as a foreground service.
-2. Android tries `localhost:8765` immediately (ADB reverse tunnel path).
-3. If 3 retries fail (~7 s), Android starts `UdpDiscovery` and listens for Qt's beacon.
-4. Manual fallback: tap the Android status dot to enter the laptop IP.
-5. On connection, Android sends:
+2. If a saved IP exists → connects to `<savedIp>:3002` immediately.
+3. If no saved IP → starts `UdpDiscovery` immediately (listens on UDP port 8766).
+4. Backend beacon received → saves IP → connects to `<beaconIp>:3002`.
+5. Manual fallback: tap Cuarzito → enter laptop IP → the app connects and saves the IP.
+6. On connection, Android sends:
 
 ```json
-{"type":"status","deviceName":"<android model>"}
+{"type":"status","role":"gancho","deviceName":"<android model>"}
 ```
 
 ### Healthy Connection
@@ -117,8 +118,8 @@ After Android sends a still photo, Qt transforms it into a thermal-style image a
 
 | Purpose | Port |
 |---|---|
-| WebSocket control/data | `8765` |
-| UDP auto-discovery beacon | see `UdpBeacon` / `UdpDiscovery` implementation |
+| WebSocket control/data (gancho channel) | `3002` |
+| UDP auto-discovery beacon | `8766` |
 
 ## Operational Rules
 
@@ -132,12 +133,13 @@ After Android sends a still photo, Qt transforms it into a thermal-style image a
 
 ## Troubleshooting
 
-### Qt says `SIN ENLACE`
+### App shows `SIN ENLACE` / does not connect
 
 - Confirm Android and laptop are on the same Wi-Fi/hotspot.
-- Confirm Qt is running before Android tries auto-discovery.
-- Try manual IP entry from Android's disconnected status sheet.
-- Check Windows firewall for port `8765`.
+- Confirm `polar_shield` backend is running (`start_polar_shield.ps1`).
+- Wait ~10 s for UDP beacon discovery on first run.
+- Try manual IP entry: tap Cuarzito → enter laptop IP → CONECTAR.
+- Check Windows firewall for port `3002` inbound (Node.js).
 
 ### Qt stays `ENLACE ACTIVO` after closing Android
 

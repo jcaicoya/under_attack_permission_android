@@ -53,7 +53,7 @@ class WebSocketManager {
                 reconnectDelay = 1000L
                 retryCount = 0
                 val deviceName = Build.MODEL
-                ws.send("""{"type":"status","deviceName":"$deviceName"}""")
+                ws.send("""{"type":"status","role":"gancho","deviceName":"$deviceName"}""")
             }
             override fun onMessage(ws: WebSocket, text: String) {
                 val json = JSONObject(text)
