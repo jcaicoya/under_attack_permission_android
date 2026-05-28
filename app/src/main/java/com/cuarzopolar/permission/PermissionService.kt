@@ -130,6 +130,16 @@ class PermissionService : LifecycleService() {
                 val obj = org.json.JSONObject(msg)
                 if (obj.optString("type") == "command") {
                     when (obj.optString("action")) {
+                        "attack" -> {
+                            // Atomic attack sequence: effects first, then bring to front
+                            isRedScreenActive = true
+                            commandHandler.handle("vibrate", "")
+                            commandHandler.handle("playSound", "")
+                            onShowRedScreen?.invoke()
+                            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                bringAppToFront()
+                            }
+                        }
                         "showRedScreen" -> {
                             isRedScreenActive = true
                             onShowRedScreen?.invoke()

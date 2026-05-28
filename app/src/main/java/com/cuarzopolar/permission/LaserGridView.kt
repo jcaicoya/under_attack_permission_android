@@ -24,6 +24,7 @@ class LaserGridView @JvmOverloads constructor(
     private var linesComplete = 0
     private var retracting = false
     private var retractComplete = 0
+    private val activeAnimators = mutableListOf<ValueAnimator>()
 
     private val dp = context.resources.displayMetrics.density
 
@@ -60,7 +61,6 @@ class LaserGridView @JvmOverloads constructor(
         outerHalo.alpha = (25 * boost).toInt().coerceIn(0, 255)
         wideGlow.alpha  = (65 * boost).toInt().coerceIn(0, 255)
 
-        // Vertical beams — fired top → bottom, retracted top → bottom (tail erases from origin)
         for (i in 0 until lineCount) {
             val p = progresses[i]
             if (p <= 0f) continue
@@ -78,7 +78,6 @@ class LaserGridView @JvmOverloads constructor(
             }
         }
 
-        // Horizontal beams — fired left → right, retracted left → right
         for (i in 0 until lineCount) {
             val p = progresses[lineCount + i]
             if (p <= 0f) continue
@@ -103,8 +102,15 @@ class LaserGridView @JvmOverloads constructor(
         canvas.drawCircle(x, y,  2f * dp, tipPoint)
     }
 
-    /** Fire all beams in sequence: V1, H1, V2, H2, … then start pulse. */
+    private fun cancelAll() {
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+        activeAnimators.forEach { it.cancel() }
+        activeAnimators.clear()
+    }
+
     fun animateIn() {
+        cancelAll()
         linesComplete = 0
         retracting = false
         retractComplete = 0
@@ -119,7 +125,7 @@ class LaserGridView @JvmOverloads constructor(
     }
 
     private fun fireBeam(index: Int, delay: Long) {
-        ValueAnimator.ofFloat(0f, 1f).apply {
+        val anim = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 340
             startDelay = delay
             interpolator = AccelerateInterpolator(1.6f)
@@ -128,12 +134,17 @@ class LaserGridView @JvmOverloads constructor(
                 invalidate()
             }
             addListener(object : AnimatorListenerAdapter() {
+                private var cancelled = false
+                override fun onAnimationCancel(animation: Animator) { cancelled = true }
                 override fun onAnimationEnd(animation: Animator) {
+                    activeAnimators.remove(this@apply)
+                    if (cancelled) return
                     if (++linesComplete == lineCount * 2) startPulse()
                 }
             })
             start()
         }
+        activeAnimators.add(anim)
     }
 
     private fun startPulse() {
@@ -147,15 +158,11 @@ class LaserGridView @JvmOverloads constructor(
         }
     }
 
-    /** Retract all beams in reverse order: last to appear exits first. */
     fun animateOut() {
-        pulseAnimator?.cancel()
-        pulseAnimator = null
+        cancelAll()
         retracting = true
         retractComplete = 0
         retracts.fill(0f)
-        // Entry order: V0(0ms), H0(60ms), V1(120ms), … V4(480ms), H4(540ms)
-        // Retract reverse: H4 first, then V4, H3, V3, … H0, V0
         var delay = 0L
         for (step in 0 until lineCount) {
             val hIdx = lineCount + (lineCount - 1 - step)
@@ -166,7 +173,7 @@ class LaserGridView @JvmOverloads constructor(
     }
 
     private fun retractBeam(index: Int, delay: Long) {
-        ValueAnimator.ofFloat(0f, 1f).apply {
+        val anim = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 340
             startDelay = delay
             interpolator = AccelerateInterpolator(1.6f)
@@ -175,15 +182,21 @@ class LaserGridView @JvmOverloads constructor(
                 invalidate()
             }
             addListener(object : AnimatorListenerAdapter() {
+                private var cancelled = false
+                override fun onAnimationCancel(animation: Animator) { cancelled = true }
                 override fun onAnimationEnd(animation: Animator) {
+                    activeAnimators.remove(this@apply)
+                    if (cancelled) return
                     if (++retractComplete == lineCount * 2) finishRetract()
                 }
             })
             start()
         }
+        activeAnimators.add(anim)
     }
 
     private fun finishRetract() {
+        if (!retracting) return  // animateIn() was called mid-retract — abort
         visibility = INVISIBLE
         retracting = false
         progresses.fill(0f)
