@@ -2,6 +2,7 @@ package com.cuarzopolar.permission.capture
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -21,6 +22,7 @@ class SpeechManager(
     private var recognizer: SpeechRecognizer? = null
     private var active = false
     private val handler = Handler(Looper.getMainLooper())
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     fun start() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -83,7 +85,10 @@ class SpeechManager(
             }
 
             // Unused callbacks
-            override fun onReadyForSpeech(p: Bundle)  {}
+            override fun onReadyForSpeech(p: Bundle)  {
+                // Unmute STREAM_MUSIC now that the beep has been suppressed
+                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
+            }
             override fun onBeginningOfSpeech()         {}
             override fun onRmsChanged(v: Float)        {}
             override fun onBufferReceived(b: ByteArray?) {}
@@ -100,6 +105,8 @@ class SpeechManager(
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
         }
+        // Mute STREAM_MUSIC to suppress the SpeechRecognizer "ready" beep
+        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, 0)
         recognizer?.startListening(intent)
     }
 
