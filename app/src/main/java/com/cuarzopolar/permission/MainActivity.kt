@@ -251,13 +251,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun promptDrawOverlaysIfNeeded() {
         if (!Settings.canDrawOverlays(this)) {
-            val prefs = getSharedPreferences("permission_prefs", Context.MODE_PRIVATE)
-            if (!prefs.getBoolean("overlay_prompted", false)) {
-                prefs.edit().putBoolean("overlay_prompted", true).apply()
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                    data = Uri.parse("package:$packageName")
-                })
-            }
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                data = Uri.parse("package:$packageName")
+            })
         }
     }
 

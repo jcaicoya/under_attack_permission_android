@@ -348,10 +348,12 @@ class PermissionService : LifecycleService() {
             }
         )
         // HIGH importance channel required for full-screen intent on Android 10+
+        // Vibration (200 ms) is needed so Android shows heads-up banners on all OEMs.
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_PRIORITY_ID, "CuarzoPolar Alerta", NotificationManager.IMPORTANCE_HIGH).apply {
                 setSound(null, null)
-                enableVibration(false)
+                enableVibration(true)
+                setVibrationPattern(longArrayOf(0, 200))
                 description = "Trae la app al primer plano"
             }
         )
