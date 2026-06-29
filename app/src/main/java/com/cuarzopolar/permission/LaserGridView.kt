@@ -8,6 +8,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Color
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AccelerateInterpolator
@@ -48,6 +49,16 @@ class LaserGridView @JvmOverloads constructor(
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.argb(a, r, g, b); style = Paint.Style.FILL
         }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_UP) performClick()
+        return true
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
+    }
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
